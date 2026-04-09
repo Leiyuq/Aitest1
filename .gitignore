@@ -1,0 +1,17 @@
+# 虚拟环境
+.venv/
+venv/
+
+# 本地数据/缓存
+user data/
+vector_store/
+__pycache__/
+
+# IDE配置
+.idea/
+.vscode/
+.devcontainer
+
+# 环境变量
+.env
+.streamlit
