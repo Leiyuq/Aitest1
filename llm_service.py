@@ -115,8 +115,8 @@ RDM单号： DEMO-001
         if self.config.model == "local":
             return {"status": "success", "content": self._local_generate(), "message": "本地生成"}
 
-        max_tokens = 1500
-        temperature = 0.4
+        max_tokens = 3000  #输出toknes
+        temperature = 0.4  #创造性0-3
 
         for attempt in range(AppConfig.API_MAX_RETRIES):
             try:
@@ -155,7 +155,7 @@ RDM单号： DEMO-001
             yield self._local_generate()
             return
 
-        max_tokens = 1500
+        max_tokens = 2000
         temperature = 0.4
 
         for attempt in range(AppConfig.API_MAX_RETRIES):
