@@ -146,7 +146,7 @@ class EnhancedKnowledgeBase:
         self.kb_prefix = ProjectManager.get_kb_path(project_name)  # OSS 前缀
         self.vector_prefix = ProjectManager.get_vector_store_path(project_name)
 
-        # 临时目录
+        # 临时目录 - 使用项目名区分
         self.temp_dir = Path(tempfile.gettempdir()) / f"kb_{project_name}"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -173,13 +173,12 @@ class EnhancedKnowledgeBase:
             # 静默失败，后续操作会处理
             pass
 
-    @st.cache_data(ttl=30)  # 缓存30秒，减少OSS列表调用
-    def get_file_list_cached(_self, with_metadata=False):
-        """带缓存的文件列表获取"""
+    def get_file_list(self, with_metadata=False):
+        """获取文件列表 - 不使用缓存，直接读取OSS"""
         files = []
-        prefix = f"{_self.kb_prefix}/"
+        prefix = f"{self.kb_prefix}/"
         try:
-            for obj in oss2.ObjectIterator(_self.oss_bucket, prefix=prefix):
+            for obj in oss2.ObjectIterator(self.oss_bucket, prefix=prefix):
                 key = obj.key
                 filename = key[len(prefix):]
                 if not filename or filename.startswith('.') or filename.endswith('/'):
@@ -195,14 +194,10 @@ class EnhancedKnowledgeBase:
                             mtime = float(obj.last_modified)
                         info.update({"size_bytes": obj.size, "mtime": mtime})
                     files.append(info)
-            return files
+            return sorted(files, key=lambda x: x['name'])
         except Exception as e:
             st.error(f"OSS 列表失败: {e}")
             return []
-
-    def get_file_list(self, with_metadata=False):
-        """获取文件列表，使用缓存"""
-        return self.get_file_list_cached(with_metadata)
 
     def upload_file(self, filename: str, content: bytes) -> bool:
         key = f"{self.kb_prefix}/{filename}"
@@ -215,8 +210,6 @@ class EnhancedKnowledgeBase:
         try:
             self.oss_bucket.put_object(key, content)
             self.index_loaded = False
-            # 清除缓存
-            self.get_file_list_cached.clear()
             return True
         except Exception:
             return False
@@ -231,8 +224,6 @@ class EnhancedKnowledgeBase:
         remaining_files = self.get_file_list(with_metadata=True)
         self.vector_store.update_metadata(remaining_files)
         self.index_loaded = len(remaining_files) > 0 and self.vector_store.load_index()
-        # 清除缓存
-        self.get_file_list_cached.clear()
 
     #========================= 文档解析（从 OSS 读取字节流） ====================#
     def _read_file_from_oss(self, filename: str) -> bytes:
@@ -470,8 +461,6 @@ class EnhancedKnowledgeBase:
                 files_info = [{"name": f["name"], "size_bytes": f["size_bytes"], "mtime": f["mtime"]} for f in files]
                 self.vector_store.update_metadata(files_info)
                 self.index_loaded = True
-                # 清除缓存
-                self.get_file_list_cached.clear()
                 return {"status": "success",
                         "message": f"增量构建成功，新增 {len(files_to_build)} 个文件，{len(new_chunks)} 个知识片段",
                         "files": len(files), "chunks": len(all_docs)}
@@ -512,8 +501,6 @@ class EnhancedKnowledgeBase:
                 ok = self.vector_store.build_index(all_chunks, files_info)
                 if ok:
                     self.index_loaded = True
-                    # 清除缓存
-                    self.get_file_list_cached.clear()
                     return {"status": "success",
                             "message": f"构建成功，共 {len(files)} 个文件，{len(all_chunks)} 个知识片段",
                             "files": len(files), "chunks": len(all_chunks)}
@@ -550,7 +537,6 @@ class EnhancedKnowledgeBase:
     def refresh_index(self) -> Dict:
         """刷新索引，清除缓存"""
         self.index_loaded = False
-        self.get_file_list_cached.clear()
         files = self.get_file_list(with_metadata=True)
         if not files:
             self.vector_store.clear_index()

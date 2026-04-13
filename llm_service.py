@@ -3,6 +3,7 @@ from openai import OpenAI
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from config import AppConfig
 
+
 # ====================== LLM 服务 ======================
 class LLMService:
     # 缓存系统 Prompt（避免重复构建字符串）
@@ -18,7 +19,6 @@ class LLMService:
         if cls._SYSTEM_PROMPT_CACHE is None:
             cls._SYSTEM_PROMPT_CACHE = cls._build_system_prompt()
         return cls._SYSTEM_PROMPT_CACHE
-
 
     @staticmethod
     def _build_system_prompt() -> str:
@@ -78,7 +78,7 @@ RDM单号： DEMO-001
   1. 优先依据需求说明中描述的操作结果。
   2. 若需求未说明，参考同类成熟产品的典型行为。
   3. 结果必须**肯定无疑义、可客观判定**（如"页面弹出提示'密码错误'；停留在当前页面"），禁止模糊描述（如"系统正常"）。
-  
+
 ## 用例数量指引
 ### 简单需求（1-2个功能点）
 - 用例数量：3-6个
@@ -115,8 +115,8 @@ RDM单号： DEMO-001
         if self.config.model == "local":
             return {"status": "success", "content": self._local_generate(), "message": "本地生成"}
 
-        max_tokens = 3000  #输出toknes
-        temperature = 0.4  #创造性0-3
+        max_tokens = 3000  # 输出toknes
+        temperature = 0.4  # 创造性0-3
 
         for attempt in range(AppConfig.API_MAX_RETRIES):
             try:
@@ -130,7 +130,7 @@ RDM单号： DEMO-001
                     future = executor.submit(
                         lambda: client.chat.completions.create(
                             model=self.config.model,
-                            messages=messages, # type: ignore  #忽略该行类型检查
+                            messages=messages,  # type: ignore  #忽略该行类型检查
                             temperature=temperature,
                             max_tokens=max_tokens
                         )
@@ -155,7 +155,7 @@ RDM单号： DEMO-001
             yield self._local_generate()
             return
 
-        max_tokens = 2000
+        max_tokens = 3000
         temperature = 0.4
 
         for attempt in range(AppConfig.API_MAX_RETRIES):
@@ -165,7 +165,7 @@ RDM单号： DEMO-001
                     {"role": "system", "content": self._get_system_prompt()},  # 修复：使用正确的系统提示获取方法
                     {"role": "user", "content": f"需求：{prompt}\n\n知识库：\n{context}"}
                 ]
-                stream = client.chat.completions.create(# type: ignore
+                stream = client.chat.completions.create(  # type: ignore
                     model=self.config.model,
                     messages=messages,
                     temperature=temperature,
