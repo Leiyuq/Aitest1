@@ -21,6 +21,7 @@ from core import (
 # ====================== 主视图 ======================
 class MainView:
     def __init__(self):
+        # 初始化 session_state
         if "current_project" not in st.session_state:
             projects = ProjectManager.get_all_projects()
             if projects:
@@ -33,8 +34,24 @@ class MainView:
         if "show_new_project_input" not in st.session_state:
             st.session_state.show_new_project_input = False
 
+        # 知识库缓存 - 关键修复：缓存每个项目的知识库实例
+        if "kb_cache" not in st.session_state:
+            st.session_state.kb_cache = {}
+
+        # 项目切换计数器 - 强制刷新组件
+        if "project_switch_counter" not in st.session_state:
+            st.session_state.project_switch_counter = 0
+
         self.current_project = st.session_state.current_project
-        self.kb = EnhancedKnowledgeBase(self.current_project)
+
+        # 获取或创建当前项目的知识库实例
+        self._init_knowledge_base()
+
+    def _init_knowledge_base(self):
+        """初始化当前项目的知识库（带缓存）"""
+        if self.current_project not in st.session_state.kb_cache:
+            st.session_state.kb_cache[self.current_project] = EnhancedKnowledgeBase(self.current_project)
+        self.kb = st.session_state.kb_cache[self.current_project]
 
     def render(self):
         st.title("测试用例智构系统")
@@ -61,6 +78,10 @@ class MainView:
                                 st.success(f"项目 '{new_project_name}' 创建成功")
                                 st.session_state.current_project = new_project_name
                                 st.session_state.show_new_project_input = False
+                                # 清除缓存并重新初始化
+                                if new_project_name in st.session_state.kb_cache:
+                                    del st.session_state.kb_cache[new_project_name]
+                                st.session_state.project_switch_counter += 1
                                 st.rerun()
                             else:
                                 st.error("项目创建失败，可能名称已存在")
@@ -73,14 +94,22 @@ class MainView:
 
             projects = ProjectManager.get_all_projects()
             if projects:
+                # 确保当前项目在列表中
+                if self.current_project not in projects:
+                    self.current_project = projects[0]
+                    st.session_state.current_project = self.current_project
+
+                current_index = projects.index(self.current_project)
                 selected_project = st.selectbox(
                     "当前项目",
                     options=projects,
-                    index=projects.index(self.current_project) if self.current_project in projects else 0,
-                    key="project_selector"
+                    index=current_index,
+                    key=f"project_selector_{st.session_state.project_switch_counter}"
                 )
                 if selected_project != self.current_project:
                     st.session_state.current_project = selected_project
+                    self.current_project = selected_project
+                    st.session_state.project_switch_counter += 1
                     st.rerun()
             else:
                 st.warning("暂无项目，请先创建")
@@ -92,8 +121,7 @@ class MainView:
                 "选择文件（可多选）",
                 type=list(AppConfig.ALLOWED_FILE_TYPES),
                 accept_multiple_files=True,
-                key=f"file_uploader_{st.session_state.uploader_key}",
-                # help="支持Word/PDF/Excel/PPT/Xmind等格式",
+                key=f"file_uploader_{st.session_state.uploader_key}_{self.current_project}",
             )
             if st.button("上传", key="upload_btn", use_container_width=True):
                 if uploaded_files:
@@ -119,12 +147,20 @@ class MainView:
         self._gen_panel(model_key)
 
     def _kb_panel(self):
+        """知识库管理面板"""
+        # 确保知识库实例是最新的
+        self._init_knowledge_base()
+
         st.subheader(f"知识库 - {self.current_project}")
+
+        # 每次刷新时重新获取文件列表
         files = self.kb.get_file_list()
         built_files = self.kb.get_built_files_safe()
+
         if files:
             for f in files:
                 col1, col2, col3, _ = st.columns([0.5, 3, 0.5, 2])
+                # 使用文件列表中的标记判断是否已构建
                 is_built = f['name'] in built_files
                 if is_built:
                     col1.write("✅已构建")
@@ -166,6 +202,8 @@ class MainView:
                         if res["status"] == "success":
                             status.update(state="complete")
                             st.toast(res['message'], icon="✅")
+                            # 构建成功后更新缓存
+                            st.session_state.kb_cache[self.current_project] = self.kb
                         else:
                             status.update(label="", state="error")
                             st.toast(res['message'], icon="❌")
@@ -180,8 +218,19 @@ class MainView:
                 st.rerun()
 
     def _delete_file_and_rebuild(self, filename: str):
+        """删除文件并重建索引"""
+        # 删除文件
         self.kb.delete_file(filename)
-        st.rerun()
+
+        # 清除缓存，强制重新加载
+        if self.current_project in st.session_state.kb_cache:
+            del st.session_state.kb_cache[self.current_project]
+
+        # 重新创建知识库实例
+        self.kb = EnhancedKnowledgeBase(self.current_project)
+        st.session_state.kb_cache[self.current_project] = self.kb
+
+        st.toast(f"已删除文件 {filename}", icon="🗑️")
 
     def _gen_panel(self, model_key):
         st.subheader("生成测试用例")
@@ -212,7 +261,7 @@ class MainView:
             uploaded_file = st.file_uploader(
                 "选择需求文档",
                 type=list(AppConfig.ALLOWED_FILE_TYPES),
-                key="req_file_uploader",
+                key=f"req_file_uploader_{self.current_project}",
                 label_visibility="collapsed",
                 help="上传需求并解析传给大模型生成测试用例"
             )

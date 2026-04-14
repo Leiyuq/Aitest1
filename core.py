@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import re
+import zipfile
 import json
 import pickle
 import io
@@ -21,47 +22,7 @@ from openpyxl import load_workbook
 from pptx import Presentation
 import jieba
 from config import AppConfig
-
 warnings.filterwarnings('ignore')
-
-# ====================== RDM 单号处理 ======================
-class RDMService:
-    @staticmethod
-    def fetch_rdm_content(rdm_code: str) -> Dict:
-        """获取RDM单号对应的描述内容"""
-        try:
-            url = f"{AppConfig.RDM_BASE_URL}{rdm_code}"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            response = requests.get(url, headers=headers, timeout=30)
-
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                # 查找描述模块
-                description_div = soup.find('div', id='description-val')
-                if description_div:
-                    # 提取用户内容块
-                    user_content = description_div.find('div', class_='user-content-block')
-                    if user_content:
-                        content = user_content.get_text(strip=True)
-                        return {"success": True, "content": content, "url": url}
-                    else:
-                        content = description_div.get_text(strip=True)
-                        return {"success": True, "content": content, "url": url}
-                else:
-                    return {"success": False, "error": "未找到描述内容", "url": url}
-            else:
-                return {"success": False, "error": f"HTTP {response.status_code}", "url": url}
-        except Exception as e:
-            return {"success": False, "error": str(e), "url": url}
-
-    @staticmethod
-    def extract_rdm_codes(text: str) -> List[str]:
-        """从文本中提取RDM单号"""
-        pattern = r'[A-Za-z0-9_]+-\d+'
-        return re.findall(pattern, text)
-
 
 # ====================== 阿里云 OSS 辅助函数(获取配置） ======================
 @st.cache_resource
@@ -281,83 +242,88 @@ class EnhancedKnowledgeBase:
         return '\n'.join(all_text)
 
     @staticmethod
+    @staticmethod
     def _parse_xmind(filepath: str) -> str:
-        """解析XMind文件，提取所有文本内容"""
+        """解析XMind文件（兼容所有版本，直接解压读取JSON）"""
+        all_texts = []
         try:
-            import xmind
+            import zipfile
+            import json
 
-            # 加载XMind文件
-            workbook = xmind.load(filepath)
-            all_texts = []
+            with zipfile.ZipFile(filepath, 'r') as zf:
+                # 优先处理 content.json
+                if 'content.json' in zf.namelist():
+                    data = json.load(zf.open('content.json'))
 
-            def extract_topic(topic, level=0):
-                """递归提取主题内容"""
-                texts = []
+                    # 处理 data 可能是列表或字典的情况
+                    sheets_data = []
+                    if isinstance(data, dict):
+                        sheets_data = data.get('sheets', [])
+                    elif isinstance(data, list):
+                        # 有些版本直接返回 sheets 列表
+                        sheets_data = data
+                    else:
+                        return "无法识别的XMind JSON结构"
 
-                # 获取主题标题
-                title = topic.getTitle()
-                if title and title.strip():
-                    texts.append(title.strip())
+                    def extract_from_topic(topic):
+                        texts = []
+                        if not isinstance(topic, dict):
+                            return texts
+                        title = topic.get('title')
+                        if title and isinstance(title, str) and title.strip():
+                            texts.append(title.strip())
+                        # 备注
+                        notes = topic.get('notes')
+                        if isinstance(notes, dict):
+                            plain = notes.get('plain')
+                            if isinstance(plain, dict):
+                                content = plain.get('content')
+                                if content and isinstance(content, str) and content.strip():
+                                    texts.append(content.strip())
+                        # 子主题
+                        children = topic.get('children')
+                        if isinstance(children, dict):
+                            attached = children.get('attached', [])
+                            if isinstance(attached, list):
+                                for child in attached:
+                                    texts.extend(extract_from_topic(child))
+                        return texts
 
-                # 获取备注/笔记
-                try:
-                    notes = topic.getNotes()
-                    if notes and notes.strip():
-                        texts.append(notes.strip())
-                except:
-                    pass
+                    for sheet in sheets_data:
+                        if not isinstance(sheet, dict):
+                            continue
+                        sheet_title = sheet.get('title')
+                        if sheet_title and isinstance(sheet_title, str) and sheet_title.strip():
+                            all_texts.append(sheet_title.strip())
+                        root_topic = sheet.get('rootTopic')
+                        if isinstance(root_topic, dict):
+                            all_texts.extend(extract_from_topic(root_topic))
 
-                # 获取标签/标记
-                try:
-                    markers = topic.getMarkers()
-                    if markers:
-                        for marker in markers:
-                            if marker and str(marker).strip():
-                                texts.append(str(marker))
-                except:
-                    pass
+                # 兼容旧版 content.xml
+                elif 'content.xml' in zf.namelist():
+                    content = zf.read('content.xml').decode('utf-8')
+                    # 提取 <title> 和 <plain-text> 标签内容
+                    title_matches = re.findall(r'<title[^>]*>([^<]+)</title>', content)
+                    plain_matches = re.findall(r'<plain-text[^>]*>([^<]+)</plain-text>', content)
+                    all_texts.extend(title_matches)
+                    all_texts.extend(plain_matches)
+                else:
+                    return "无法识别 XMind 文件格式，缺少 content.json 或 content.xml"
 
-                # 递归处理子主题
-                try:
-                    children = topic.getSubTopics()
-                    if children:
-                        for child in children:
-                            texts.extend(extract_topic(child, level + 1))
-                except:
-                    pass
-
-                return texts
-
-            # 遍历所有工作表
-            sheets = workbook.getSheets()
-            for sheet in sheets:
-                # 获取工作表标题
-                sheet_title = sheet.getTitle()
-                if sheet_title and sheet_title.strip():
-                    all_texts.append(sheet_title.strip())
-
-                # 获取根主题
-                root_topic = sheet.getRootTopic()
-                if root_topic:
-                    all_texts.extend(extract_topic(root_topic))
-
-            # 去重并保持顺序
-            seen = set()
-            unique_texts = []
-            for text in all_texts:
-                if text and text not in seen:
-                    seen.add(text)
-                    unique_texts.append(text)
-
-            # 返回结果
-            if unique_texts:
-                return '\n'.join(unique_texts)
-            else:
-                return "无法提取XMind内容"
         except Exception as e:
             return f"XMind解析失败: {str(e)}"
 
-    #========================= 分块与构建 =========================#
+        # 去重并返回
+        seen = set()
+        unique_texts = []
+        for text in all_texts:
+            if text and text not in seen:
+                seen.add(text)
+                unique_texts.append(text)
+
+        return '\n'.join(unique_texts) if unique_texts else "未提取到有效文本内容"
+
+    #=============================== 分块与构建 =========================#
     def _chunk_text(self, text: str, source: str) -> List[Dict]:
         prefixed_text = f"[文件：{source}]\n{text}"
         chunks = []
@@ -419,7 +385,7 @@ class EnhancedKnowledgeBase:
                 return {"status": "success", "message": f"所有文档已构建（共 {stats['documents']} 个知识片段）",
                         "chunks": stats['documents']}
 
-            # 增量构建
+            # 增量构建（跳过已构建文档）
             if built_files and not force:
                 new_chunks = []
                 total_to_build = len(files_to_build)
@@ -555,7 +521,7 @@ class EnhancedKnowledgeBase:
         return {"status": "error", "message": "未找到有效索引，请先构建知识库"}
 
 
-# ====================== 轻量级 TF‑IDF 向量检索（支持 OSS） ======================
+# ====================== 轻量级 TF‑IDF 向量检索（RAG检索，支持OSS） ======================
 class SimpleVectorStore:
     def __init__(self, store_dir: str, oss_bucket, oss_prefix: str):
         """
@@ -836,46 +802,172 @@ class SimpleVectorStore:
         self._upload_to_oss(self.metadata_file, self._oss_key("metadata.pkl"))
 
 
-# ====================== 用例解析与导出 ======================
+# ============================== RDM 单号处理 ============================
+class RDMService:
+    @staticmethod
+    def fetch_rdm_content(rdm_code: str) -> Dict:
+        """获取RDM单号对应的描述内容"""
+        try:
+            url = f"{AppConfig.RDM_BASE_URL}{rdm_code}"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            response = requests.get(url, headers=headers, timeout=30)
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                # 查找描述模块
+                description_div = soup.find('div', id='description-val')
+                if description_div:
+                    # 提取用户内容块
+                    user_content = description_div.find('div', class_='user-content-block')
+                    if user_content:
+                        content = user_content.get_text(strip=True)
+                        return {"success": True, "content": content, "url": url}
+                    else:
+                        content = description_div.get_text(strip=True)
+                        return {"success": True, "content": content, "url": url}
+                else:
+                    return {"success": False, "error": "未找到描述内容", "url": url}
+            else:
+                return {"success": False, "error": f"HTTP {response.status_code}", "url": url}
+        except Exception as e:
+            return {"success": False, "error": str(e), "url": url}
+
+    @staticmethod
+    def extract_rdm_codes(text: str) -> List[str]:
+        """从文本中提取RDM单号"""
+        pattern = r'[A-Za-z0-9_]+-\d+'
+        return re.findall(pattern, text)
+
+
 class TestCaseService:
     @staticmethod
     def parse(content: str, rdm_codes: List[str]) -> List[Dict]:
+        """
+        解析管道符分隔的测试用例格式
+        格式：用例ID|优先级|用例名称|前置条件|测试步骤|预期结果
+        步骤和预期结果使用分号(;)或中文分号(；)分隔
+        """
         cases = []
-        blocks = re.split(r'\n\s*\n', content.strip())
+        lines = content.strip().splitlines()
         rdm_idx = 0
-        for block in blocks:
-            if not any(k in block for k in ["用例ID", "用例名称", "测试步骤"]):
+
+        for line in lines:
+            line = line.strip()
+            if not line:
                 continue
-            case = {"RDM单号": "", "用例ID": "","优先级":"", "用例名称": "", "前置条件": "", "测试步骤": "", "预期结果": ""}
-            patterns = {
-                "用例ID": r"用例ID[:：]\s*([^\n]+)",
-                "RDM单号": r"RDM单号[:：]\s*([^\n]+)",
-                "优先级": r"优先级[:：]\s*([^\n]+)",  # 解析优先级
-                "用例名称": r"用例名称[:：]\s*([^\n]+)",
-                "前置条件": r"前置条件[:：]\s*([^\n]+(?:\n(?!用例|rdm|测试|预期)[^\n]+)*)",
-                "测试步骤": r"测试步骤[:：]\s*([^\n]+(?:\n(?!用例|rdm|前置|预期)[^\n]+)*)",
-                "预期结果": r"预期结果[:：]\s*([^\n]+(?:\n(?!用例|rdm|前置|测试)[^\n]+)*)"
+            # 按 | 分割成6个字段
+            parts = line.split('|')
+            if len(parts) < 6:
+                # 尝试兼容可能包含管道符的内容
+                if len(parts) == 5:
+                    # 缺少优先级，补默认值
+                    parts.insert(1, "Medium")
+                elif len(parts) > 6:
+                    # 合并多余的字段到预期结果
+                    parts[5] = '|'.join(parts[5:])
+                    parts = parts[:6]
+                else:
+                    continue
+            # 字段一一对应
+            case_id = parts[0].strip()
+            priority = parts[1].strip()
+            case_name = parts[2].strip()
+            pre_condition = parts[3].strip() if parts[3].strip() else "无"
+            steps_text = parts[4].strip()
+            expect_text = parts[5].strip()
+            # 跳过无效用例
+            if not case_id or not case_name:
+                continue
+            # 处理步骤和预期结果（保留原始分隔符，不转义）
+            test_steps = TestCaseService._format_steps(steps_text)
+            expected_result = TestCaseService._format_expected(expect_text)
+            # 组装成字典
+            case = {
+                "RDM单号": "",
+                "用例ID": case_id,
+                "优先级": priority,
+                "用例名称": case_name,
+                "前置条件": pre_condition,
+                "测试步骤": test_steps,
+                "预期结果": expected_result
             }
-            for field, pat in patterns.items():
-                m = re.search(pat, block, re.DOTALL)
-                if m:
-                    value = m.group(1).strip()
-                    if field in ["用例ID", "RDM单号"]:
-                        value = re.sub(r'^\[|\]$', '', value)
-                    case[field] = re.sub(r'\n+', ' ', value)
-            if not case["RDM单号"] and rdm_codes:
+
+            # 自动填充 RDM 单号
+            if rdm_codes:
                 case["RDM单号"] = rdm_codes[rdm_idx % len(rdm_codes)]
                 rdm_idx += 1
-            if case["用例ID"]:
-                cases.append(case)
+
+            cases.append(case)
+
         return cases
+
+    @staticmethod
+    def _format_steps(steps_text: str) -> str:
+        """
+        格式化测试步骤
+        输入：1.打开页面->点击按钮；2.填写表单；3.提交
+        输出：1. 打开页面->点击按钮；2. 填写表单；3. 提交
+        注意：不显示转义字符，保持原始分号分隔
+        """
+        if not steps_text:
+            return ""
+
+        # 统一分隔符：将中文分号替换为英文分号
+        steps_text = steps_text.replace('；', ';')
+
+        # 按分号分割步骤
+        steps = [s.strip() for s in steps_text.split(';') if s.strip()]
+
+        # 格式化输出：保持分号分隔，不换行
+        formatted_steps = []
+        for i, step in enumerate(steps, 1):
+            # 移除步骤中已有的编号（如"1."），避免重复
+            step = re.sub(r'^\d+\.\s*', '', step)
+            formatted_steps.append(f"{i}.{step}")
+        # 使用分号连接，不显示换行符
+        return '；'.join(formatted_steps)
+
+    @staticmethod
+    def _format_expected(expect_text: str) -> str:
+        """
+        格式化预期结果
+        输入：1.弹出审核意见填写框；2.状态更新为待开票
+        输出：1.弹出审核意见填写框；2.状态更新为待开票
+        注意：不显示转义字符，保持原始分号分隔
+        """
+        if not expect_text:
+            return ""
+        # 统一分隔符：将中文分号替换为英文分号
+        expect_text = expect_text.replace('；', ';')
+        # 按分号分割预期结果
+        expects = [e.strip() for e in expect_text.split(';') if e.strip()]
+        # 格式化输出：保持分号分隔，不换行
+        formatted_expects = []
+        for i, exp in enumerate(expects, 1):
+            # 移除已有的编号
+            exp = re.sub(r'^\d+\.\s*', '', exp)
+            formatted_expects.append(f"{i}.{exp}")
+        # 使用分号连接，不显示换行符
+        return '；'.join(formatted_expects)
 
 class ExportService:
     @staticmethod
     def to_csv(cases: List[Dict]) -> bytes:
+        """导出为标准CSV格式，不包含转义字符"""
+        if not cases:
+            return b''
         df = pd.DataFrame(cases)
-        cols = ["RDM单号", "用例ID", "优先级","用例名称", "前置条件", "测试步骤", "预期结果"]
-        df = df[[c for c in cols if c in df.columns]]
+        cols = ["RDM单号", "用例ID", "优先级", "用例名称", "前置条件", "测试步骤", "预期结果"]
+        # 只保留存在的列
+        existing_cols = [c for c in cols if c in df.columns]
+        df = df[existing_cols]
+        # 确保不包含转义字符
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                df[col] = df[col].astype(str).str.replace('\n', ' ').str.replace('\r', ' ')
         buf = io.BytesIO()
-        df.to_csv(buf, index=False, encoding='utf-8-sig')
+        # 修复：使用 lineterminator 而不是 line_terminator
+        df.to_csv(buf, index=False, encoding='utf-8-sig', lineterminator='\n')
         return buf.getvalue()
