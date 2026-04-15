@@ -24,11 +24,12 @@ class AppConfig:
     RDM_BASE_URL = "http://rdm.zvos.zoomlion.com/browse/"  # RDM跳转地址
 
     MODELS = {
-        "turbo": ModelConfig(
+
+        "plus": ModelConfig(
             name="通义千问",
             api_key="sk-02c7ef707efa48e6a5555eabbc54aaa8",
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            model="qwen-turbo"  #相比plus,速度更快，成本更低
+            model="qwen-plus"  #相比turbo，推理更强，tokens更大
         ),
         "local": ModelConfig(
             name="本地离线",
