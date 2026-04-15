@@ -251,7 +251,7 @@ class MainView:
             text_prompt = st.text_area(
                 "需求描述",
                 height=200,
-                max_chars=8000,
+                max_chars=15000,
                 key="prompt_text",
                 placeholder="请在此输入详细的需求描述...\n\n示例： 配件搜索功能：\n   - 支持关键词搜索\n   - 支持价格区间筛选\n   - 搜索结果按相关性排序"
             )
