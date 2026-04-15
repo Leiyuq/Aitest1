@@ -7,7 +7,8 @@ class ModelConfig:
     api_key: str
     base_url: str
     model: str
-
+    max_tokens = 32000  # 输出tokens
+    temperature = 0.1  # 创造性0-3
 
 class AppConfig:
     PAGE_TITLE = "测试用例智构系统"

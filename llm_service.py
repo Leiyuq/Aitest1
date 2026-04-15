@@ -11,6 +11,7 @@ class LLMService:
 
     def __init__(self, model_key: str):
         ident = model_key.split("(")[-1].rstrip(")")
+        # 赋值给 self.config
         self.config = AppConfig.MODELS.get(ident, AppConfig.MODELS["local"])
 
     @classmethod
@@ -108,9 +109,6 @@ RDM单号： DEMO-001
         if self.config.model == "local":
             return {"status": "success", "content": self._local_generate(), "message": "本地生成"}
 
-        max_tokens = 12000  # 输出tokens
-        temperature = 0.1  # 创造性0-3
-
         for attempt in range(AppConfig.API_MAX_RETRIES):
             try:
                 client = OpenAI(api_key=self.config.api_key, base_url=self.config.base_url,
@@ -124,8 +122,8 @@ RDM单号： DEMO-001
                         lambda: client.chat.completions.create(
                             model=self.config.model,
                             messages=messages,  # type: ignore  #忽略该行类型检查
-                            temperature=temperature,
-                            max_tokens=max_tokens
+                            temperature=self.config.temperature,
+                            max_tokens=self.config.max_tokens
                         )
                     )
                     resp = future.result(timeout=AppConfig.API_TIMEOUT)
@@ -147,8 +145,6 @@ RDM单号： DEMO-001
         if self.config.model == "local":
             yield self._local_generate()
             return
-        max_tokens = 12000
-        temperature = 0.1
 
         for attempt in range(AppConfig.API_MAX_RETRIES):
             try:
@@ -160,8 +156,8 @@ RDM单号： DEMO-001
                 stream = client.chat.completions.create(  # type: ignore
                     model=self.config.model,
                     messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens,
                     stream=True
                 )
                 for chunk in stream:
