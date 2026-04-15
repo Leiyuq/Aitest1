@@ -251,7 +251,7 @@ class MainView:
             text_prompt = st.text_area(
                 "需求描述",
                 height=200,
-                max_chars=5000,
+                max_chars=8000,
                 key="prompt_text",
                 placeholder="请在此输入详细的需求描述...\n\n示例： 配件搜索功能：\n   - 支持关键词搜索\n   - 支持价格区间筛选\n   - 搜索结果按相关性排序"
             )
@@ -426,41 +426,71 @@ class MainView:
                             st.info("知识库尚未构建，将直接使用模型生成。如需检索知识，请先构建知识库。")
                     else:
                         st.info("当前项目无文档，将直接使用模型生成。")
-                # ========== 流式生成 ==========
+
+# ========================== 流式生成 ===============================
                 llm = LLMService(model_key)
-                # 创建显示区域
                 st.markdown("#### 📝 AI 生成过程")
-                response_placeholder = st.empty()
+
+                # 创建两个占位符：一个用于实时流式显示，一个用于最终状态
+                stream_placeholder = st.empty()
+                status_placeholder = st.empty()
+
                 full_response = ""
-                # 调用流式方法
-                for chunk in llm.generate_cases_streaming(prompt, context):
-                    full_response += chunk
-                    # 实时显示当前已生成的内容（带光标效果）
-                    response_placeholder.code(full_response + "▌", language="text")
+                try:
+                    for chunk in llm.generate_cases_streaming(prompt, context):
+                        full_response += chunk
+                        # 实时显示带光标的内容
+                        stream_placeholder.code(full_response + "▌", language="text")
 
-                # 生成完成，移除光标并显示完整内容
-                response_placeholder.code(full_response, language="text")
-                resp = llm.generate_cases(prompt, context)
-                # 生成完成，清除流式占位符
-                response_placeholder.empty()
-                # 将完整生成内容放入默认折叠的展开器中（作为思考过程记录）
-                with st.expander("📜 查看生成过程（点击展开）", expanded=False):
-                    st.code(full_response, language="text")
+                    # 流式正常结束
+                    stream_placeholder.code(full_response, language="text")
 
-                # ========== 解析测试用例 ==========
-                if resp["status"] == "error":
-                    st.error(f"❌ {resp['message']}")
-                else:
-                    # 提取RDM单号
-                    rdm_codes = RDMService.extract_rdm_codes(prompt)
+                    # 统计用例数量（假设用例ID格式为 TC001、TC002...）
+                    import re
+                    case_ids = re.findall(r'^TC\d+', full_response, re.MULTILINE)
+                    case_count = len(case_ids)
 
-                    cases = TestCaseService.parse(resp["content"], rdm_codes)
-                    if cases:
-                        st.session_state.cases = cases
-                        st.success(f"成功解析出 {len(cases)} 个测试用例")
+                    # 判断是否可能被截断（最后一行不完整且没有结束标志）
+                    last_line = full_response.strip().split('\n')[-1] if full_response else ""
+                    is_truncated = (
+                            last_line and
+                            not last_line.startswith('TC') and
+                            not full_response.rstrip().endswith('```')  # 假设输出不以代码块结束
+                    )
+
+                    if is_truncated:
+                        status_placeholder.error(
+                            f"⚠️ 生成可能被截断！只收到 {len(full_response)} 字符，用例数 {case_count}。请尝试增大 max_tokens。")
                     else:
-                        st.warning("解析失败，显示原始内容")
-                        st.code(resp["content"], language="text")
+                        status_placeholder.success(f"✅ 生成完成，共 {case_count} 个测试用例，总字符 {len(full_response)}")
+
+                    # 可选：将完整内容放入折叠区域供回顾
+                    with st.expander("📜 查看生成过程（点击展开）", expanded=False):
+                        st.code(full_response, language="text")
+
+                except Exception as e:
+                    status_placeholder.error(f"❌ 生成失败: {str(e)}")
+                    st.exception(e)
+                    st.stop()  # 停止执行，避免后续解析出错
+
+# =============================== 解析测试用例 =========================
+                if not full_response:
+                    st.error("生成内容为空，无法解析")
+                    st.stop()
+
+                # 提取RDM单号（从原始 prompt 中提取，不依赖模型输出）
+                rdm_codes = RDMService.extract_rdm_codes(prompt)
+
+                # 调用解析服务，传入模型输出的文本和 RDM 单号
+                cases = TestCaseService.parse(full_response,
+                                              rdm_codes)  # 注意：第一个参数改为 full_response 字符串，不是 full_response["content"]
+
+                if cases:
+                    st.session_state.cases = cases
+                    st.success(f"成功解析出 {len(cases)} 个测试用例")
+                else:
+                    st.warning("解析失败，显示原始内容")
+                    st.code(full_response, language="text")  # 同样直接使用 full_response
 
         # 显示结果
         if "cases" in st.session_state:
