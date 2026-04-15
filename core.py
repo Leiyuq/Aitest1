@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 import re
-import zipfile
 import json
 import pickle
 import io
@@ -254,7 +253,6 @@ class EnhancedKnowledgeBase:
                 # 优先处理 content.json
                 if 'content.json' in zf.namelist():
                     data = json.load(zf.open('content.json'))
-
                     # 处理 data 可能是列表或字典的情况
                     sheets_data = []
                     if isinstance(data, dict):
@@ -320,7 +318,6 @@ class EnhancedKnowledgeBase:
             if text and text not in seen:
                 seen.add(text)
                 unique_texts.append(text)
-
         return '\n'.join(unique_texts) if unique_texts else "未提取到有效文本内容"
 
     #=============================== 分块与构建 =========================#
