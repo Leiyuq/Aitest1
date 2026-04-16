@@ -4,39 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fdb34684-89d0-4225-b97e-fde8d883eb7e" name="更改" comment="1">
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/_asyncio.pyd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/_bz2.pyd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/_ctypes.pyd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/_ctypes_test.pyd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/libcrypto-3.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/libffi-8.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/libssl-3.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/pyexpat.pyd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/python.exe" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/python3.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/python314.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/pythonw.exe" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/select.pyd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/sqlite3.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/tcl86t.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/tk86t.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/unicodedata.pyd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/vcruntime140.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/vcruntime140_1.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/winsound.pyd" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/Scripts/zlib1.dll" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.venv/pyvenv.cfg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/llm_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/aitest.py" beforeDir="false" afterPath="$PROJECT_DIR$/core.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+    <list default="true" id="fdb34684-89d0-4225-b97e-fde8d883eb7e" name="更改" comment="修改max_chars=15000">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/llm_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/llm_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -143,7 +113,12 @@
       <workItem from="1775743754006" duration="532000" />
       <workItem from="1775744317428" duration="1073000" />
       <workItem from="1776041620736" duration="18334000" />
-      <workItem from="1776062453317" duration="18842000" />
+      <workItem from="1776062453317" duration="27472000" />
+      <workItem from="1776126219100" duration="21386000" />
+      <workItem from="1776167995917" duration="1500000" />
+      <workItem from="1776217721527" duration="12876000" />
+      <workItem from="1776244081247" duration="4723000" />
+      <workItem from="1776324563918" duration="1599000" />
     </task>
     <task id="LOCAL-00001" summary="1">
       <option name="closed" value="true" />
@@ -153,14 +128,106 @@
       <option name="project" value="LOCAL" />
       <updated>1775744151153</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="修改创建项目报错 、 流式输出、大模型promot缓存和配置">
+      <option name="closed" value="true" />
+      <created>1776083738603</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1776083738603</updated>
+    </task>
+    <task id="LOCAL-00003" summary="修改最大tokens">
+      <option name="closed" value="true" />
+      <created>1776084466911</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1776084466911</updated>
+    </task>
+    <task id="LOCAL-00004" summary="修改知识库列表显示异常问题">
+      <option name="closed" value="true" />
+      <created>1776092019335</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1776092019335</updated>
+    </task>
+    <task id="LOCAL-00005" summary="修改模型promot和tokens">
+      <option name="closed" value="true" />
+      <created>1776157956245</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1776157956245</updated>
+    </task>
+    <task id="LOCAL-00006" summary="修改模型promot和模型配置为plus;流式显示">
+      <option name="closed" value="true" />
+      <created>1776225935858</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1776225935858</updated>
+    </task>
+    <task id="LOCAL-00007" summary="修改max_chars为8000">
+      <option name="closed" value="true" />
+      <created>1776226733961</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1776226733961</updated>
+    </task>
+    <task id="LOCAL-00008" summary="设置为modelconfig:max_tokens = 32000  # 输出tokens&#10;    temperature = 0.1  # 创造性0-3">
+      <option name="closed" value="true" />
+      <created>1776230471410</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1776230471410</updated>
+    </task>
+    <task id="LOCAL-00009" summary="无特别修改，同步">
+      <option name="closed" value="true" />
+      <created>1776230591426</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1776230591426</updated>
+    </task>
+    <task id="LOCAL-00010" summary="修改max_chars=15000">
+      <option name="closed" value="true" />
+      <created>1776230623565</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1776230623565</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="1" />
-    <option name="LAST_COMMIT_MESSAGE" value="1" />
+    <MESSAGE value="修改创建项目报错 、 流式输出、大模型promot缓存和配置" />
+    <MESSAGE value="修改最大tokens" />
+    <MESSAGE value="修改知识库列表显示异常问题" />
+    <MESSAGE value="修改模型promot和tokens" />
+    <MESSAGE value="修改模型promot和模型配置为plus;流式显示" />
+    <MESSAGE value="修改max_chars为8000" />
+    <MESSAGE value="设置为modelconfig:max_tokens = 32000  # 输出tokens&#10;    temperature = 0.1  # 创造性0-3" />
+    <MESSAGE value="无特别修改，同步" />
+    <MESSAGE value="修改max_chars=15000" />
+    <option name="LAST_COMMIT_MESSAGE" value="修改max_chars=15000" />
   </component>
 </project>
