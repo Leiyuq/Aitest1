@@ -99,7 +99,7 @@ RDM单号： DEMO-001
                     {"role": "system", "content": self._get_system_prompt()},
                     {"role": "user", "content": f"需求：{prompt}\n\n知识库：\n{context}"}
                 ]
-                with ThreadPoolExecutor(max_workers=5) as executor:
+                with ThreadPoolExecutor(max_workers=5) as executor:  #多线程
                     future = executor.submit(
                         lambda: client.chat.completions.create(
                             model=self.config.model,
@@ -122,6 +122,7 @@ RDM单号： DEMO-001
                 time.sleep(AppConfig.API_RETRY_DELAY)
         return {"status": "error", "message": "未知错误"}
 
+    # 调用流式生成接口，prompt 为用户需求，context 为 RAG 检索到的知识片段
     def generate_cases_streaming(self, prompt: str, context: str):
         """流式生成测试用例，yield 文本块"""
         if self.config.model == "local":
@@ -133,7 +134,7 @@ RDM单号： DEMO-001
                 client = OpenAI(api_key=self.config.api_key, base_url=self.config.base_url)
                 messages = [
                     {"role": "system", "content": self._get_system_prompt()},  # 修复：使用正确的系统提示获取方法
-                    {"role": "user", "content": f"需求：{prompt}\n\n知识库：\n{context}"}
+                    {"role": "user", "content": f"需求：{prompt}\n\n知识库：\n{context}"}  #用户输入需求prompt和检索到的知识库内容context拼接到用户消息中content，最终输入
                 ]
                 stream = client.chat.completions.create(  # type: ignore
                     model=self.config.model,
