@@ -244,7 +244,7 @@ class MainView:
         # 输入方式选择（需求描述 或 RDM单号）
         input_type = st.radio("输入方式", ["需求描述", "RDM单号"], horizontal=True, key="input_type_radio")
 
-        prompt = ""
+        prompt = ""   #用户输入需求描述、测试要点、上传文档解析
 
         if input_type == "需求描述":
             # 需求描述输入框
@@ -443,13 +443,14 @@ class MainView:
             with st.spinner("正在生成测试用例，请稍候..."):
                 context = ""
                 if use_rag:
-                    files = self.kb.get_file_list()
+                    files = self.kb.get_file_list()   # 检查当前项目是否有文档
                     if files:
                         if not self.kb.index_loaded:
-                            with st.spinner("正在加载知识库索引..."):
+                            with st.spinner("正在加载知识库索引..."):   # 加载/刷新 TF‑IDF 索引
                                 self.kb.refresh_index()
                         if self.kb.index_loaded:
                             with st.expander("🔍 RAG检索详情", expanded=False):
+                                #执行检索，根据用户输入的promte获取 top_k 个相关片段
                                 results = self.kb.search_knowledge(prompt, top_k=5)
                                 if results:
                                     st.write(f"找到 {len(results)} 个相关知识片段：")
@@ -461,6 +462,7 @@ class MainView:
                                             st.divider()
                                 else:
                                     st.info("未检索到相关知识，将基于模型自身知识生成")
+                                    # 将检索到的多个片段拼接成上下文字符串context
                             context = self.kb.get_knowledge_context(prompt, max_chunks=5)
                         else:
                             st.info("知识库尚未构建，将直接使用模型生成。如需检索知识，请先构建知识库。")
@@ -477,7 +479,7 @@ class MainView:
 
                 full_response = ""
                 try:
-                    for chunk in llm.generate_cases_streaming(prompt, context):
+                    for chunk in llm.generate_cases_streaming(prompt, context): #调用流式生成接口，prompt 为用户需求，context 为 RAG 检索到的知识片段
                         full_response += chunk
                         # 实时显示带光标的内容
                         stream_placeholder.code(full_response + "▌", language="text")
