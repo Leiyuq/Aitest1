@@ -253,7 +253,17 @@ class MainView:
                 height=200,
                 max_chars=15000,
                 key="prompt_text",
-                placeholder="请在此输入详细的需求描述...\n\n示例： 配件搜索功能：\n   - 支持关键词搜索\n   - 支持价格区间筛选\n   - 搜索结果按相关性排序"
+                placeholder="请在此输入详细的需求描述..."
+            )
+
+            # 新增：测试要点输入框
+            test_points = st.text_area(
+                "测试要点",
+                height=150,
+                max_chars=5000,
+                key="test_points_input",
+                placeholder="请在此输入你要重点验证的功能点，例如：\n- 主要测试点  - 边界值测试  - 异常流程测试  - 性能、安全要求...",
+                help="这些测试要点将作为附加指令传递给大模型，帮助生成更精准的测试用例"
             )
 
             # 上传文档区域
@@ -297,70 +307,100 @@ class MainView:
                     st.session_state.uploaded_file_content = ""
                     st.session_state.uploaded_file_name = ""
 
-            # 组合内容：需求描述 + 文档内容（如果有）
-            if text_prompt or st.session_state.uploaded_file_content:
-                prompt = text_prompt
-                if st.session_state.uploaded_file_content:
-                    if prompt:
-                        prompt += "\n\n---\n\n【补充文档内容】\n"
-                    else:
-                        prompt = "【补充文档内容】\n"
-                    prompt += st.session_state.uploaded_file_content
+            # 组合内容：需求描述 + 测试要点 + 需求文档内容（如果有）
+            prompt_parts = []
+            if text_prompt:
+                prompt_parts.append(text_prompt)
+            if test_points:
+                prompt_parts.append(f"【测试要点】\n{test_points}")
+            if st.session_state.uploaded_file_content:
+                prompt_parts.append(f"【需求文档内容】\n{st.session_state.uploaded_file_content}")
+
+            if prompt_parts:
+                prompt = "\n\n---\n\n".join(prompt_parts)
                 st.session_state.final_prompt = prompt
+            else:
+                st.session_state.final_prompt = ""
         else:
-            # RDM单号输入   - 不显示上传文档按钮
-            rdm_input = st.text_area(
-                "RDM单号",
-                height=200,
-                key="rdm_input_area",
-                placeholder="请输入RDM单号，多个单号请用逗号或换行分隔\n例如：DEMO-001, DEMO-002\n或：\nDEMO-001\nDEMO-002"
-            )
+                # RDM单号输入 - 不显示上传文档按钮
+                rdm_input = st.text_area(
+                    "RDM单号",
+                    height=200,
+                    key="rdm_input_area",
+                    placeholder="请输入RDM单号，多个单号请用逗号或换行分隔\n例如：DEMO-001, DEMO-002\nDEMO-001\nDEMO-002"
+                )
 
-            if rdm_input:
-                # 提取RDM单号
-                rdm_codes = RDMService.extract_rdm_codes(rdm_input)
+                # 新增：RDM模式下的测试要点输入框（独立于需求描述模式的测试要点）
+                rdm_test_points = st.text_area(
+                    "测试要点",
+                    height=150,
+                    max_chars=5000,
+                    key="rdm_test_points_input",
+                    placeholder="请在此输入你要重点验证的功能点，例如：\n- 主要测试点  - 边界值测试  - 异常流程测试  - 性能、安全要求...",
+                    help="这些测试要点将作为附加指令传递给大模型，帮助生成更精准的测试用例"
+                )
 
-                if rdm_codes:
-                    st.info(f"✅ 检测到 {len(rdm_codes)} 个RDM单号：{', '.join(rdm_codes)}")
+                if rdm_input:
+                    # 提取RDM单号
+                    rdm_codes = RDMService.extract_rdm_codes(rdm_input)
 
-                    # 显示获取RDM内容的按钮
-                    col_btn1, col_btn2 = st.columns([1, 5])
-                    with col_btn1:
-                        fetch_clicked = st.button("📥 获取RDM需求内容", key="fetch_rdm_content",
-                                                  use_container_width=True)
+                    if rdm_codes:
+                        st.info(f"✅ 检测到 {len(rdm_codes)} 个RDM单号：{', '.join(rdm_codes)}")
 
-                    if fetch_clicked:
-                        rdm_contents = []
-                        with st.spinner("正在获取RDM需求内容..."):
-                            for rdm_code in rdm_codes:
-                                result = RDMService.fetch_rdm_content(rdm_code)
-                                if result["success"]:
-                                    rdm_contents.append({
-                                        "code": rdm_code,
-                                        "content": result["content"],
-                                        "url": result["url"]
-                                    })
-                                    st.success(f"✅ 成功获取 {rdm_code} 的内容")
-                                else:
-                                    st.error(f"❌ 获取 {rdm_code} 失败：{result['error']}")
+                        # 显示获取RDM内容的按钮
+                        col_btn1, col_btn2 = st.columns([1, 5])
+                        with col_btn1:
+                            fetch_clicked = st.button("📥 获取RDM需求内容", key="fetch_rdm_content",
+                                                      use_container_width=True)
 
-                            if rdm_contents:
-                                # 组合所有RDM内容
-                                combined_content = "\n\n".join([
-                                    f"【RDM单号：{item['code']}】\n{item['content']}"
-                                    for item in rdm_contents
-                                ])
-                                st.session_state.rdm_prompt = combined_content
-                                st.success(f"✅ 已获取 {len(rdm_contents)} 个RDM单号的需求内容")
+                        if fetch_clicked:
+                            rdm_contents = []
+                            with st.spinner("正在获取RDM需求内容..."):
+                                for rdm_code in rdm_codes:
+                                    result = RDMService.fetch_rdm_content(rdm_code)
+                                    if result["success"]:
+                                        rdm_contents.append({
+                                            "code": rdm_code,
+                                            "content": result["content"],
+                                            "url": result["url"]
+                                        })
+                                        st.success(f"✅ 成功获取 {rdm_code} 的内容")
+                                    else:
+                                        st.error(f"❌ 获取 {rdm_code} 失败：{result['error']}")
 
-                    # 如果已经获取过内容，显示预览
-                    if "rdm_prompt" in st.session_state and st.session_state.rdm_prompt:
-                        prompt = st.session_state.rdm_prompt
-                        st.session_state.final_prompt = prompt
-                        with st.expander("📋 RDM需求内容预览", expanded=False):
-                            st.text(prompt[:1000] + ("..." if len(prompt) > 1000 else ""))
-                else:
-                    st.warning("未检测到有效的RDM单号格式（格式如：NJ_SPM-15530）")
+                                if rdm_contents:
+                                    # 组合所有RDM内容
+                                    combined_content = "\n\n".join([
+                                        f"【RDM单号：{item['code']}】\n{item['content']}"
+                                        for item in rdm_contents
+                                    ])
+                                    st.session_state.rdm_prompt = combined_content
+
+                                    # 组合RDM内容 + 测试要点（如果存在）
+                                    prompt_parts = [f"【RDM需求内容】\n{combined_content}"]
+                                    if rdm_test_points:
+                                        prompt_parts.append(f"【测试要点】\n{rdm_test_points}")
+                                    final_prompt = "\n\n---\n\n".join(prompt_parts)
+                                    st.session_state.final_prompt = final_prompt
+
+                                    st.success(f"✅ 已获取 {len(rdm_contents)} 个RDM单号的需求内容，并已合并测试要点")
+
+                        # 如果已经获取过RDM内容（例如之前点击获取过），则每次页面刷新时重新合并测试要点
+                        if "rdm_prompt" in st.session_state and st.session_state.rdm_prompt:
+                            # 获取当前测试要点输入框的值（可能已更新）
+                            current_test_points = st.session_state.get("rdm_test_points_input", "")
+                            # 重新组合
+                            prompt_parts = [f"【RDM需求内容】\n{st.session_state.rdm_prompt}"]
+                            if current_test_points:
+                                prompt_parts.append(f"【测试要点】\n{current_test_points}")
+                            final_prompt = "\n\n---\n\n".join(prompt_parts)
+                            st.session_state.final_prompt = final_prompt
+
+                            # 显示预览
+                            with st.expander("📋 RDM需求内容及测试要点预览", expanded=False):
+                                st.text(final_prompt[:1000] + ("..." if len(final_prompt) > 1000 else ""))
+                    else:
+                        st.warning("未检测到有效的RDM单号格式（格式如：NJ_SPM-15530）")
 
         # RAG选项
         col_check, _ = st.columns([1, 6])
