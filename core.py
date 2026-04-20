@@ -833,11 +833,11 @@ class RDMService:
 
     @staticmethod
     def extract_rdm_codes(text: str) -> List[str]:
-        """从文本中提取RDM单号"""
-        pattern = r'[A-Za-z0-9_]+-\d+'
+        """从文本中提取RDM单号：字母开头 + 字母/数字/下划线 + - + 数字"""
+        pattern = r'[A-Za-z][A-Za-z0-9_]*-\d+'
         return re.findall(pattern, text)
 
-
+#===================================测试用例解析与导出================
 class TestCaseService:
     @staticmethod
     def parse(content: str, rdm_codes: List[str]) -> List[Dict]:
