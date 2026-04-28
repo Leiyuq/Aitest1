@@ -3,6 +3,7 @@
 阿里云OSS持久化存储 - 性能优化版
 """
 import streamlit as st
+import time
 
 st.set_page_config(page_title="测试用例智构系统", layout="wide")
 
@@ -84,7 +85,7 @@ class MainView:
                                 st.session_state.project_switch_counter += 1
                                 st.rerun()
                             else:
-                                st.error("项目创建失败，可能名称已存在")
+                                st.error("项目创建失败，名称已存在")
                         else:
                             st.warning("请输入项目名称")
                 with col_cancel:
@@ -138,6 +139,7 @@ class MainView:
                     if fail_count > 0:
                         st.warning(f"{fail_count} 个文件已存在，未重复上传")
                     st.session_state.uploader_key += 1
+                    time.sleep(1)
                     st.rerun()
                 else:
                     st.warning("请先选择文件")
@@ -147,20 +149,38 @@ class MainView:
         self._gen_panel(model_key)
 
     def _kb_panel(self):
-        """知识库管理面板"""
+        """知识库管理面板（带分页）"""
         # 确保知识库实例是最新的
         self._init_knowledge_base()
 
         st.subheader(f"知识库 - {self.current_project}")
 
-        # 每次刷新时重新获取文件列表
+        # 分页配置
+        PAGE_SIZE = 10
+        page_key = f"kb_page_{self.current_project}"
+        if page_key not in st.session_state:
+            st.session_state[page_key] = 0
+
+        # 获取文件列表
         files = self.kb.get_file_list()
         built_files = self.kb.get_built_files_safe()
+        total_files = len(files)
+        total_pages = max(1, (total_files + PAGE_SIZE - 1) // PAGE_SIZE)
 
-        if files:
-            for f in files:
+        # 修正当前页（防止超出范围）
+        current_page = st.session_state[page_key]
+        if current_page >= total_pages:
+            current_page = total_pages - 1
+            st.session_state[page_key] = current_page
+
+        # 切片当前页文件
+        start_idx = current_page * PAGE_SIZE
+        end_idx = min(start_idx + PAGE_SIZE, total_files)
+        page_files = files[start_idx:end_idx]
+
+        if page_files:
+            for f in page_files:
                 col1, col2, col3, _ = st.columns([0.5, 3, 0.5, 2])
-                # 使用文件列表中的标记判断是否已构建
                 is_built = f['name'] in built_files
                 if is_built:
                     col1.write("✅已构建")
@@ -184,12 +204,37 @@ class MainView:
         else:
             st.info("暂无文档，请先上传文件")
 
+
+        # 分页控件（仅当文件数超过每页大小且非空时显示）
+        if total_files > PAGE_SIZE:
+            left_space, right_box, rigth_space = st.columns([2, 2, 1])  # 右侧区域容纳分页
+            with right_box:
+                # 列比例：两侧按钮自适应宽度，中间文字区域稍大
+                col_prev, col_info, col_next = st.columns([0.3, 0.6, 0.6], gap="small")
+                with col_prev:
+                    if st.button("上一页", disabled=(current_page == 0), key=f"prev_{self.current_project}"):
+                        st.session_state[page_key] = current_page - 1
+                        st.rerun()
+                with col_info:
+                    # 使用 line-height 与按钮高度对齐，移除默认边距
+                    st.markdown(
+                        f"<div style='text-align: center; line-height: 32px; margin: 0;'>第 {current_page + 1} / {total_pages} 页，共 {total_files} 条</div>",
+                        unsafe_allow_html=True
+                    )
+                with col_next:
+                    if st.button("下一页", disabled=(current_page >= total_pages - 1),
+                                 key=f"next_{self.current_project}"):
+                        st.session_state[page_key] = current_page + 1
+                        st.rerun()
+        # 原有操作按钮
         col_btn1, col_btn2, _ = st.columns([1, 1, 6])
         with col_btn1:
             if st.button("构建知识库", type="primary", use_container_width=True):
                 if not files:
                     st.warning("请先上传文件")
                 else:
+                    # 重置页码
+                    st.session_state[page_key] = 0
                     with st.status("正在构建知识库...", expanded=True) as status:
                         prog = st.progress(0)
                         stat = st.empty()
@@ -202,35 +247,38 @@ class MainView:
                         if res["status"] == "success":
                             status.update(state="complete")
                             st.toast(res['message'], icon="✅")
-                            # 构建成功后更新缓存
                             st.session_state.kb_cache[self.current_project] = self.kb
+                            time.sleep(1)
                         else:
                             status.update(label="", state="error")
                             st.toast(res['message'], icon="❌")
                     st.rerun()
         with col_btn2:
             if st.button("刷新索引", use_container_width=True):
+                st.session_state[page_key] = 0  # 重置页码
                 res = self.kb.refresh_index()
                 if res["status"] == "success":
                     st.toast(res["message"], icon="🔄")
                 else:
                     st.toast(res["message"], icon="⚠️")
+                time.sleep(1)
                 st.rerun()
 
     def _delete_file_and_rebuild(self, filename: str):
-        """删除文件并重建索引"""
-        # 删除文件
+        """删除文件并重建索引（同时重置分页页码）"""
         self.kb.delete_file(filename)
-
-        # 清除缓存，强制重新加载
+        # 清除缓存
         if self.current_project in st.session_state.kb_cache:
             del st.session_state.kb_cache[self.current_project]
-
         # 重新创建知识库实例
         self.kb = EnhancedKnowledgeBase(self.current_project)
         st.session_state.kb_cache[self.current_project] = self.kb
-
+        # 重置当前项目的分页页码
+        page_key = f"kb_page_{self.current_project}"
+        st.session_state[page_key] = 0
         st.toast(f"已删除文件 {filename}", icon="🗑️")
+        time.sleep(1)  # 让用户看见提示
+        st.rerun()
 
     def _gen_panel(self, model_key):
         st.subheader("生成测试用例")
@@ -502,7 +550,7 @@ class MainView:
 
                     if is_truncated:
                         status_placeholder.error(
-                            f"⚠️ 生成可能被截断！只收到 {len(full_response)} 字符，用例数 {case_count}。请尝试增大 max_tokens。")
+                            f"⚠️ 生成可能被截断！只收到 {len(full_response)} 字符，用例数 {case_count}。")
                     else:
                         status_placeholder.success(f"✅ 生成完成，共 {case_count} 个测试用例，总字符 {len(full_response)}")
 
