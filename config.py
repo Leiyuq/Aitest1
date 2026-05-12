@@ -26,11 +26,23 @@ class AppConfig:
 
     MODELS = {
 
-        "plus": ModelConfig(
+        "qwen-plus": ModelConfig(
             name="通义千问",
             api_key="sk-02c7ef707efa48e6a5555eabbc54aaa8",
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            model="qwen-plus"  #相比turbo，推理更强，tokens更大
+            model="qwen-plus-2025-12-01"  #相比turbo，推理更强，tokens更大
+        ),
+        "deepseek-v4": ModelConfig(
+            name="deepseek",
+            api_key="sk-02c7ef707efa48e6a5555eabbc54aaa8",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            model="deepseek-v4-flash"
+        ),
+        "deepseek-v4-pro": ModelConfig(
+            name="deepseek",
+            api_key="sk-02c7ef707efa48e6a5555eabbc54aaa8",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            model="deepseek-v4-pro"  # 相比turbo，推理更强，tokens更大
         ),
         "local": ModelConfig(
             name="本地离线",
