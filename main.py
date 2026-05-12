@@ -548,11 +548,11 @@ class MainView:
                             not full_response.rstrip().endswith('```')  # 假设输出不以代码块结束
                     )
 
-                    if is_truncated:
-                        status_placeholder.error(
-                            f"⚠️ 生成可能被截断！只收到 {len(full_response)} 字符，用例数 {case_count}。")
-                    else:
-                        status_placeholder.success(f"✅ 生成完成，共 {case_count} 个测试用例，总字符 {len(full_response)}")
+                    # if is_truncated:
+                    #     status_placeholder.info(
+                    #         f"⚠️ 收到 {len(full_response)} 字符，用例数 {case_count}。检查生成信息是否完整")
+                    # else:
+                    status_placeholder.success(f"✅ 生成完成，共 {case_count} 个测试用例，总字符 {len(full_response)}")
 
                     # 可选：将完整内容放入折叠区域供回顾
                     with st.expander("📜 查看生成过程（点击展开）", expanded=False):
