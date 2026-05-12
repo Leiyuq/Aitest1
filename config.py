@@ -18,7 +18,7 @@ class AppConfig:
         "txt", "csv", "docx", "doc", "pdf", "xlsx", "xls", "pptx", "xmind", "md"
     }
     RAG_TOP_K = 5   # 检索最大数量
-    RAG_SIMILARITY_THRESHOLD = 0.2   # 检索匹配最低相识度
+    RAG_SIMILARITY_THRESHOLD = 0.6   # 检索匹配最低相识度
     API_TIMEOUT = 60
     API_MAX_RETRIES = 2
     API_RETRY_DELAY = 2
