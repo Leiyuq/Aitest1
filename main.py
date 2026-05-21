@@ -1,6 +1,6 @@
 """
 测试用例智构系统 - 轻量级 RAG（NumPy TF‑IDF）  无用户登录、项目知识库
-阿里云OSS持久化存储 - 性能优化版
+阿里云OSS持久化存储 - 性能优化版 --2026-5-15：正式使用版本
 """
 import streamlit as st
 import time
