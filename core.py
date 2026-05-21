@@ -192,6 +192,7 @@ class EnhancedKnowledgeBase:
 
     def _extract_text_from_bytes(self, filename: str, content_bytes: bytes) -> str:
         ext = filename.split('.')[-1].lower()
+
         # 对于需要文件路径的解析器，写入临时文件
         if ext in ['docx', 'doc', 'pdf', 'xlsx', 'xls', 'pptx', 'xmind']:
             with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
@@ -202,12 +203,18 @@ class EnhancedKnowledgeBase:
             finally:
                 os.unlink(tmp_path)
         else:
-            # txt, csv, json, md 直接解码
+            # txt, md, json, csv, html 直接解码或解析
             if ext in ['txt', 'md', 'json']:
                 return content_bytes.decode('utf-8', errors='ignore')
             elif ext == 'csv':
                 df = pd.read_csv(io.BytesIO(content_bytes))
                 return df.to_string()
+            elif ext in ['html', 'htm']:
+                # 使用 BeautifulSoup 提取文本
+                soup = BeautifulSoup(content_bytes, 'html.parser')
+                # 获取纯文本，去除多余空白
+                text = soup.get_text(separator='\n', strip=True)
+                return text if text else "未提取到有效文本内容"
             else:
                 return f"暂无法识别该类型 (.{ext})，请联系管理员"
 
