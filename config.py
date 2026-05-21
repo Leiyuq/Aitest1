@@ -15,7 +15,7 @@ class AppConfig:
     LAYOUT = "wide"
     BASE_ROOT = "knowledge_projects"  # OSS 中的根目录前缀
     ALLOWED_FILE_TYPES = {
-        "txt", "csv", "docx", "doc", "pdf", "xlsx", "xls", "pptx", "xmind", "md"
+        "txt", "csv", "docx", "doc", "pdf", "xlsx", "xls", "pptx", "xmind", "md",'html', 'htm'
     }
     RAG_TOP_K = 5   # 检索最大数量
     RAG_SIMILARITY_THRESHOLD = 0.6   # 检索匹配最低相识度
@@ -38,11 +38,17 @@ class AppConfig:
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             model="deepseek-v4-flash"
         ),
-        "deepseek-v4-pro": ModelConfig(
+        "deepseek-r1": ModelConfig(
             name="deepseek",
             api_key="sk-02c7ef707efa48e6a5555eabbc54aaa8",
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            model="deepseek-v4-pro"  # 相比turbo，推理更强，tokens更大
+            model="deepseek-r1"  # 相比turbo，推理更强，tokens更大
+        ),
+        "qwen-plus1": ModelConfig(
+            name="通义千问",
+            api_key="sk-02c7ef707efa48e6a5555eabbc54aaa8",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            model="qwen-plus"  # 相比turbo，推理更强，tokens更大
         ),
         "local": ModelConfig(
             name="本地离线",
